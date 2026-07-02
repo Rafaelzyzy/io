@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de IP</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 24px;
+            color: #007bff;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .results {
+            margin-top: 25px;
+            border-top: 2px solid #eee;
+            padding-top: 20px;
+        }
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #f9f9f9;
+        }
+        .result-item span:first-child {
+            font-weight: 600;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Calculadora de Sub-rede IP</h2>
+    
+    <div class="input-group">
+        <label for="ip">Endereço IP:</label>
+        <input type="text" id="ip" placeholder="Ex: 192.168.1.50" value="192.168.1.50">
+    </div>
+    
+    <div class="input-group">
+        <label for="cidr">Máscara (CIDR):</label>
+        <select id="cidr"></select>
+    </div>
+    
+    <button onclick="calcularIP()">Calcular</button>
+    
+    <div class="results" id="results" style="display: none;">
+        <div class="result-item"><span>Rede:</span> <span id="resNet"></span></div>
+        <div class="result-item"><span>Máscara de Rede:</span> <span id="resMask"></span></div>
+        <div class="result-item"><span>IP de Uso:</span> <span id="resIpUso"></span></div>
+        <div class="result-item"><span>Gateway:</span> <span id="resGateway"></span></div>
+        <div class="result-item"><span>Quantidade de Hosts:</span> <span id="resHosts"></span></div>
+    </div>
+</div>
+
+<script>
+    const cidrSelect = document.getElementById('cidr');
+    for (let i = 32; i >= 1; i--) {
+        let option = document.createElement('option');
+        option.value = i;
+        option.text = `/${i}`;
+        if (i === 24) option.selected = true;
+        cidrSelect.appendChild(option);
+    }
+
+    function ipParaLong(ip) {
+        return ip.split('.').reduce((acc, octeto) => (acc << 8) + parseInt(octeto, 10), 0) >>> 0;
+    }
+
+    function longParaIp(long) {
+        return [
+            (long >>> 24) & 255,
+            (long >>> 16) & 255,
+            (long >>> 8) & 255,
+            long & 255
+        ].join('.');
+    }
+
+    function calcularIP() {
+        const ipInput = document.getElementById('ip').value.trim();
+        const cidr = parseInt(document.getElementById('cidr').value, 10);
+        
+        const ipRegex = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+        if (!ipRegex.test(ipInput)) {
+            alert("Por favor, insira um endereço IP válido.");
+            return;
+        }
+
+        const ipLong = ipParaLong(ipInput);
+        const mascaraLong = cidr === 0 ? 0 : (~0 << (32 - cidr)) >>> 0;
+        
+        const redeLong = (ipLong & mascaraLong) >>> 0;
+        const broadcastLong = (redeLong | ~mascaraLong) >>> 0;
+        
+        let gatewayLong = redeLong + 1;
+        let ipUsoLong = broadcastLong - 1;
+        let numHosts = broadcastLong - redeLong - 1;
+
+        if (cidr === 31) {
+            gatewayLong = redeLong;
+            ipUsoLong = broadcastLong;
+            numHosts = 2;
+        } else if (cidr === 32) {
+            gatewayLong = redeLong;
+            ipUsoLong = redeLong;
+            numHosts = 1;
+        }
+
+        document.getElementById('resNet').innerText = longParaIp(redeLong);
+        document.getElementById('resMask').innerText = longParaIp(mascaraLong);
+        document.getElementById('resIpUso').innerText = longParaIp(ipUsoLong);
+        document.getElementById('resGateway').innerText = longParaIp(gatewayLong);
+        document.getElementById('resHosts').innerText = numHosts < 0 ? 0 : numHosts;
+
+        document.getElementById('results').style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
