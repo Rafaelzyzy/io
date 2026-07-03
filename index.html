@@ -67,6 +67,8 @@
             margin-top: 20px;
             text-align: center;
             font-weight: bold;
+            font-size: 14px;
+            line-height: 1.5;
         }
         .results {
             margin-top: 25px;
@@ -93,7 +95,7 @@
     
     <div class="input-group">
         <label for="ip">Endereço IP:</label>
-        <input type="text" id="ip" placeholder="Ex: 172.20.1.50" value="172.20.1.50">
+        <input type="text" id="ip" placeholder="Ex: 45.188.151.154" value="45.188.151.154">
     </div>
     
     <div class="input-group">
@@ -103,9 +105,9 @@
     
     <button onclick="calcularIP()">Calcular</button>
     
-<div id="avisoClasse" class="alert-box">
-    IP inválido. O endereço informado não é público e não atende aos requisitos para um link dedicado.
-</div>
+    <div id="avisoClasse" class="alert-box">
+        IP inválido. O endereço informado não é público e não atende aos requisitos para um link dedicado.
+    </div>
     
     <div class="results" id="results" style="display: none;">
         <div class="result-item"><span>Rede:</span> <span id="resNet"></span></div>
@@ -122,7 +124,7 @@
         let option = document.createElement('option');
         option.value = i;
         option.text = `/${i}`;
-        if (i === 24) option.selected = true;
+        if (i === 30) option.selected = true; // Padrão comum em links dedicados (/30)
         cidrSelect.appendChild(option);
     }
 
@@ -150,15 +152,24 @@
         }
 
         const partesIp = ipInput.split('.').map(Number);
-        const primeiroOcteto = partesIp[0];
-        const segundoOcteto = partesIp[1];
+        const p1 = partesIp[0];
+        const p2 = partesIp[1];
 
-        // Regra para verificar se é Classe B Pública:
-        // Primeiro octeto deve estar entre 128 e 191
-        // E NÃO pode ser da faixa privada de Classe B (172.16.0.0 até 172.31.255.255)
-        const ehClasseB = (primeiroOcteto >= 128 && primeiroOcteto <= 191);
-        const ehPrivadoClasseB = (primeiroOcteto === 172 && segundoOcteto >= 16 && segundoOcteto <= 31);
-        const ehValidoParaDedicado = ehClasseB && !ehPrivadoClasseB;
+        // LÓGICA DEFINITIVA: Bloqueia todas as faixas privadas, de testes e especiais da IANA
+        let ehValidoParaDedicado = true;
+
+        if (p1 === 10) ehValidoParaDedicado = false; 
+        if (p1 === 172 && p2 >= 16 && p2 <= 31) ehValidoParaDedicado = false; 
+        if (p1 === 192 && p2 === 168) ehValidoParaDedicado = false; 
+        if (p1 === 100 && p2 >= 64 && p2 <= 127) ehValidoParaDedicado = false; 
+        if (p1 === 0) ehValidoParaDedicado = false; 
+        if (p1 === 127) ehValidoParaDedicado = false; 
+        if (p1 === 169 && p2 === 254) ehValidoParaDedicado = false; 
+        if (p1 === 192 && p2 === 0 && partesIp[2] === 2) ehValidoParaDedicado = false; 
+        if (p1 === 198 && p2 === 51 && partesIp[2] === 100) ehValidoParaDedicado = false; 
+        if (p1 === 203 && p2 === 0 && partesIp[2] === 113) ehValidoParaDedicado = false; 
+        if (p1 === 198 && p2 >= 18 && p2 <= 19) ehValidoParaDedicado = false; 
+        if (p1 >= 224) ehValidoParaDedicado = false; 
 
         const aviso = document.getElementById('avisoClasse');
         const resultadosDiv = document.getElementById('results');
@@ -166,7 +177,7 @@
         if (!ehValidoParaDedicado) {
             aviso.style.display = 'block';
             resultadosDiv.style.display = 'none';
-            return; // Interrompe o cálculo se não cumprir o requisito
+            return;
         } else {
             aviso.style.display = 'none';
         }
